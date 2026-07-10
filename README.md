@@ -2,7 +2,7 @@
 
 A custom userspace low-memory killer daemon for Android, written in pure C with no external dependencies.
 
-Built and tuned on a MediaTek Helio G85 (MT6768) device, ~3.8GB RAM, running an Android 16 GSI over an Android 10 vendor base — packaged as a Magisk module.
+Built and tuned on a MediaTek Helio G80 (MT6768) device, ~3.8GB RAM, running an Android 16 GSI over an Android 10 vendor base — packaged as a Magisk module.
 
 ## What it does
 
@@ -29,6 +29,7 @@ clang -O2 -Wall -Wextra -o lmk_engine src/lmk_engine.c -lm
 Flash a release zip from [Releases](../../releases), or zip the `module/` folder yourself and flash it via Magisk Manager, then reboot.
 
 ## Usage
+It works automatically after flashing the module, but you can run this in ithe terminal for functions 
 
 ```
 lmk_engine --start          start the daemon
@@ -45,6 +46,7 @@ Generated on-device at `/data/local/tmp/` — not part of the repo, specific to 
 ## Device-specific notes
 
 Built around real quirks on this specific GSI/vendor combo (e.g. screen-off reporting as `Dozing` rather than `Asleep`). If porting to another device, check your own `dumpsys power` output before assuming detection works as-is — see the architecture doc for details.
+Experience with the module may vary depending on device and chipset, report issues with logs [if possible]
 
 ## Status
 
