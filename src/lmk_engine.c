@@ -1,65 +1,6 @@
 /*
  * lmk_engine.c — Android Userspace Memory Manager
  * Version      : 1.25
- *
- * Changes in 1.25 (over 1.24):
- *  - is_screen_off() now also matches "Dozing" in dumpsys power's
- *    mWakefulness field, not just "Asleep". On this Android 16 GSI /
- *    Android 10 vendor combo the device reports "Dozing" and never
- *    progresses to "Asleep", so screen-off was never detected — IDLE-DEEP
- *    tier (and the learning trainer gated behind it) never fired.
- *  - New AppScore.last_bg field, set only on the exact tick a genuinely
- *    foregrounded app leaves true foreground. proactive_trim()'s
- *    warm_relaunch check now reads elapsed time from last_bg instead of
- *    last_fg: last_fg is refreshed to "now" by track_foreground() in the
- *    same tick a relaunch is detected, so the old (now - last_fg) check
- *    always read ~0s and treated every launch as a warm relaunch.
- *  - score_touch()/score_touch_bg() no longer force g_scores_dirty=true
- *    on every single tick. Continuous per-tick last_fg/fg_count refresh
- *    stays in memory as before, but only genuinely save-worthy events
- *    (new tracked app, new session boundary, meaningful avg_swap_kb
- *    move) mark scores dirty now — score_save() was firing its full
- *    200-entry rewrite almost every 15s cycle regardless of real change.
- *  - oom_pin_retained() tie-break: when two candidates have identical
- *    effective score (including PIN_STICKY_BONUS), selection now falls
- *    back to a deterministic name comparison instead of "first match in
- *    table scan order" — scan order shifts tick to tick as /proc listing
- *    order changes, which was still thrashing the pin set on exact ties
- *    even after 1.24's stickiness bonus.
- *  - fg_count accumulation ceiling decoupled from the final score clamp:
- *    new FG_COUNT_MAX (100000 ticks, ~17 days of cumulative foreground
- *    time) replaces the old SCORE_MAX (1000 ticks, ~4h) as the raw
- *    counter cap, with FG_COUNT_SCALE compressing it back down so
- *    Signal-1's contribution to score_compute() keeps the same effective
- *    range as before. Previously nearly every tracked app saturated
- *    fg_count within hours, collapsing Signal 1 into a redundant copy
- *    of the recency signal for the vast majority of entries.
- *
- * Changes in 1.24 (over 1.23):
- *  - AI_Swap learning now actually affects kill decisions: score_compute()
- *    blends the trained g_learn_w logistic model into a bounded bias
- *    (+/-LEARN_SCORE_BIAS_MAX) on top of the existing score. Previously
- *    the model trained and logged weights every 12h but nothing read
- *    them back — zero effect on real behavior.
- *  - ai_learn_train_maybe() now trains on the most recent LEARN_MAX_SAMPLES
- *    rows (circular tail-read) instead of the oldest: the log holds far
- *    more rows than the training cap before rotating, so training was
- *    silently stuck on stale data.
- *  - oom_pin_retained() pin-set stickiness: previously-pinned apps get a
- *    fixed score bonus (PIN_STICKY_BONUS) when reselecting the top-N each
- *    tick, so ties/near-ties at the score ceiling no longer thrash the
- *    pinned set every ~30s on scan-order alone.
- *  - New SERVICE_EXEMPT list (webview sandboxed renderers, carrier :rcs,
- *    GMS quicksearch interactor) routed to PRIO_NEVER in classify(): fixes
- *    both service processes crowding out real apps for retention pin
- *    slots, and the multi-thousand restart_count kill/relaunch loop on
- *    these same processes (Android always relaunches them regardless).
- *  - check_runaway_growth() is now watched for foreground processes too
- *    (previously excluded), so a heavy app that balloons RSS while
- *    actively in use (e.g. an emulator) is already flagged the instant it
- *    backgrounds instead of needing another full growth window to notice.
- *    Foreground processes are still never killed or reprioritized while
- *    actually in the foreground..
  */
 
 #include <stdio.h>
