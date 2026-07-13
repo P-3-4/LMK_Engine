@@ -2,7 +2,7 @@
 
 A custom userspace low-memory killer daemon for Android, written in pure C with no external dependencies.
 
-Built and tuned using a MediaTek Helio G80 (MT6768) device, ~3.8GB RAM.
+Built and tuned using a MediaTek Helio G80 (MT6768) device, 4GB RAM.
 Only tested on AOSP ROMs.
 
 ## What it does
