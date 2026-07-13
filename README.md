@@ -2,7 +2,8 @@
 
 A custom userspace low-memory killer daemon for Android, written in pure C with no external dependencies.
 
-Built and tuned on a MediaTek Helio G80 (MT6768) device, ~3.8GB RAM, running an Android 16 GSI over an Android 10 vendor base — packaged as a Magisk module.
+Built and tuned using a MediaTek Helio G80 (MT6768) device, ~3.8GB RAM.
+Only tested on AOSP ROMs.
 
 ## What it does
 
@@ -40,7 +41,7 @@ lmk_engine --log            tail the live log
 
 ## Runtime files
 
-Generated on-device at `/data/local/tmp/` — not part of the repo, specific to your usage:
+Generated on-device at `/data/local/tmp/`:
 `lmk_scores.dat`, `lmk_rank.cache`, `lmk_learn.log`
 
 ## Device-specific notes
