@@ -9,9 +9,9 @@ SKIPUNZIP=1   # We handle extraction ourselves
 # ── Banner ──────────────────────────────────────────────────
 ui_print ""
 ui_print "╔══════════════════════════════════════╗"
-ui_print "║          LMK Engine 1.25 by P34       ║"
-ui_print "║     A module to boost smoothness      ║"
-ui_print "║          on low ram devices           ║"
+ui_print "║          LMK Engine 1.25 by P34            ║"
+ui_print "║     A module to boost smoothness           ║"
+ui_print "║          on low ram devices                ║"
 ui_print "╚══════════════════════════════════════╝"
 ui_print ""
 
@@ -19,7 +19,7 @@ ui_print ""
 ui_print "- Checking architecture…"
 case "$ARCH" in
   arm64)
-    ui_print "  ✓ arm64 detected (MT6768 compatible)"
+    ui_print "  ✓ arm64 detected!"
     ;;
   arm)
     ui_print "  ✓ arm (32-bit) detected"
