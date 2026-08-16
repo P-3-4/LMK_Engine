@@ -1,0 +1,41 @@
+name: Build LMK Engine
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up NDK
+        uses: android-actions/setup-android@v3
+        with:
+          packages: "ndk;27.2.12479018"
+
+      - name: Build
+        run: |
+          TOOLCHAIN="$ANDROID_NDK_LATEST_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin"
+          "$TOOLCHAIN/aarch64-linux-android24-clang" \
+            -O2 -Wall -Wextra \
+            -o lmk_engine \
+            src/lmk_engine.c \
+            -lm
+
+      - name: Package
+        run: |
+          cp lmk_engine module/system/bin/lmk_engine
+          chmod 755 module/system/bin/lmk_engine
+          cd module
+          zip -r9 ../LMK_Engine.zip .
+
+      - name: Upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: LMK_Engine
+          path: LMK_Engine.zip
