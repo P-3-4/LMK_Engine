@@ -29,6 +29,7 @@ jobs:
 
       - name: Package
         run: |
+          rm -f module/*.zip
           cp lmk_engine module/system/bin/lmk_engine
           chmod 755 module/system/bin/lmk_engine
           cd module
