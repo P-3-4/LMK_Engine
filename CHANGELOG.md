@@ -3,43 +3,45 @@
 All notable changes to this project are documented here.
 
 ## v1.26 (current)
+- **Reworked App Pin Logic**: Pinning switched from `oom_score_adj` to `cgroup v2 memory.low`**: the old mechanism was confirmed unwinnable — AMS overwrites it in 1-2s, 0% survival on-device — so it's gone, along with the `AI_Swap` learned-weight model that was tuning it
+- **Improved App Rank Logic**: Consolidated the six-tier rank system down to four and added dwell timers for different ranks
+- **Improved App Classification Logic**: Added authoritative package classification via `dumpsys package` which classified the apps when the device goes idle.
+- Switched score persistence from full-table rewrites to a journal — changed entries get appended instead of rewriting the whole file, with a full consolidation only every 400 entries or on a structural change
+- **Added CGSqueeze Logic**: The Daemon now squeezes apps to reduce their consumed space without killing them. Pinned apps can now also be squeezed via `memory.high` to release RAM 
+- kswapd is now pinned to little clusters under normal pressure, released as ZRAM nears critical
+- ZRAM amount is now configured to be 50 percent of physical RAM size to reduce possible CPU overhead from continuous compression and decompression [and also because the Daemon has become so fking efficient even with little ZRAM]
+- Configured The Daemon to treat mostly full ZRAM as normal working conditions — the device runs 85-95%+ full as normal operation.
+- Fixed stale pin state surviving a full app death instead of clearing
+- Fixed a demote-then-instantly-repromote flapping loop at the tier capacity boundary [apps going back and forth continuously between ranks]
+- Fixed tier-cap slot counting per-process instead of per-package [PIDs change if an app is killed, so now the daemon detects the package name instead]
+- Added ZRAM Flush - clears up ZRAM after every 12 hours
+- Fixed foreground detection crediting usage to any app holding a foreground service, not just what's actually on screen [it now uses three layers of confirmation to detect if an app is actually foreground, not just by the oom-adj number]
+- Added External Kill in logs to catch external kills outside the daemon.
+- Also added vanish detection in case any app disappears from rank without any kill logs
+- Fixed a leftover hardcoded rule blocking an entire package namespace from ever counting as foreground
+- Fixed two protect-window discounts stacking silently, shrinking a multi-hour window down to ~8% of intended
+- Replaced the flat squeeze-target cutoff with a graduated curve
+- Added an independent low-RAM escalation path so a real emergency can't slip through when ZRAM% alone looks fine
+- Removed a ZRAM-cycle pre-kill path that could never reach its own target and was killing real apps trying to
+- Added CPU tuning based on available RAM headroom, a better predictor than ZRAM% alone
+- Added detection for deaths that leave no trace from any source
+- Restart counts now reflect kills from every source, not just this daemon's own
+- Fixed a substring bug fabricating/misattributing kill records when one package name matched inside another
+- Fixed squeeze-release jank on reopening a previously-squeezed app
+- Fixed a stale timer that could produce a false "not worth it" verdict on ZRAM cleanup
+- Fixed a PID-reuse gap in cgroup path caching
+- Atomic writes for on-disk state so a crash mid-save can't corrupt it
+- Added a scheduled full-flush sweep — every 12h+ (after 30 min continuous screen-off), kills everything except never-kill/exempt apps, bypassing pin/protect-window/cooldown entirely, as a deliberate clean slate rather than a pressure response
+- Fixed that same classification table silently evicting confirmed entries first, which forced repeatedly re-running the classify pipeline for the same answer on always-resident processes
+- Switched `score_lookup()` from a linear scan to a hash-indexed lookup
+- Added `lmk_engine --explain <pkg>` — dumps everything the daemon knows about one app (score, category, restart history, exemption status) without a manual log dig
+- Added a per-process kernel reclaim step (`echo all > /proc/pid/reclaim`) as a new middle tier between squeeze and kill — pushes a backgrounded app's pages into ZRAM without killing it (~20-25% RSS reduction confirmed on-device), rate-limited per app
+- Fixed that same reclaim path fighting the daemon's own ZRAM-pressure relief — it was repeatedly sparing one long-lived process via reclaim instead of ever actually killing it, feeding ZRAM that can't be swapped back out on this device; now skipped once ZRAM is already tight
+- Switched the PSI stall check from pure timer-polling to an event-driven trigger, so a real stall wakes the daemon immediately instead of waiting for the next tick
+- Consolidated the kill-mitigation logic (reclaim + ROI check) that used to live only inside the daemon's own opportunistic kill path into one shared check used at every kill site — most actual kill volume was going through paths that never got a chance to try mitigation first
 
-The biggest arc since the initial rewrite — the old learned-weight retention model (`AI_Swap`) is gone, pinning moved to `cgroup v2`, and a large chunk of this cycle was spent finding out the device's *actual* steady-state (chronically high ZRAM, not a rare emergency) and re-calibrating everything around that instead of a "rare escalation" assumption that never matched reality.
-
-**Retention & pinning**
-- Replaced `oom_score_adj` pinning (unwinnable — AMS overwrites it within 1–2s, confirmed 0% survival) with `cgroup v2 memory.low`, best-effort per kernel docs. The daemon's own opportunistic kills additionally respect a short exemption window for the current top-ranked set.
-- `PIN_SETTLE_S` gate added — the daemon was previously writing pins in the same window AMS was still finalizing `oom_adj` for the same transition, losing the race almost every time.
-- New `pin_squeeze_pass()` — pinned apps were previously never squeezed at all (fully exempt from reclaim), which let cold memory sit protected indefinitely and contributed to chronic ZRAM pressure.
-- Fixed a stale-protection bug where an app's pin state could persist after full app death (not just losing its slot), causing a restarted instance to be squeezed while the daemon still believed it was protected.
-
-**ZRAM & pressure model**
-- Full ZRAM tier ladder (WARN/TRIM/STUCK/CRIT) re-anchored after real-device data showed the old thresholds assumed rare emergencies — this device runs ZRAM chronically 85–95%+ full as normal operation.
-- Fixed a protect-window bug where two independently-added discount multipliers (from different versions) were stacking silently, collapsing the intended multi-hour foreground-protect window down to ~8% of its value under typical conditions.
-- Unified squeeze targeting (`memory.high`) into one graduated curve instead of a flat target with a hard cutoff, so proactive reclaim doesn't silently disable itself for large chunks of a normal day.
-- Added an independent RAM-critical escalation path — previously, kill-tier escalation was gated almost entirely on ZRAM%, so a real low-RAM emergency with ZRAM still comfortably below its threshold could leave the daemon passive while the system killed priority apps itself.
-- Removed a ZRAM-cycle pre-kill path that was confirmed structurally unable to reach its own target on this device's RAM budget (chasing free RAM equal to ~50% of total physical RAM) while still killing real, in-use apps trying to get there.
-
-**Scheduler / CPU**
-- kswapd little-core pinning — detects the device's low-frequency CPU cluster generically (by `cpuinfo_max_freq`, no hardcoded core IDs) and pins `kswapd` there during normal pressure, releasing to all cores as ZRAM approaches critical. Root-caused via log correlation that kswapd CPU spikes track kill/process-teardown churn, not sustained ZRAM level.
-- avail_pct-tiered kernel VM tuning (`extra_free_kbytes`, `watermark_scale_factor`) — avail-RAM headroom turned out to be a tighter predictor of kswapd CPU cost than ZRAM% alone.
-
-**External-kill & attribution tracking**
-- Expanded `logcat` monitoring to a second tap (AMS's structured events buffer) alongside the original system-buffer tap, to catch kills the original tap missed entirely.
-- Added presence-based "unattributed vanish" detection — catches apps that disappear with no record from any kill path at all (raw kernel OOM, another root actor, anything with zero log trace).
-- `restart_count` now reflects kills from every source (the daemon's own, external, and unattributed), not just kills the daemon itself performed — needed for retention/bounce stats to mean anything.
-- Fixed a substring-collision bug in kill-source attribution that could misattribute or fabricate kill records for packages whose name was a literal substring of another package or of unrelated log text.
-
-**Other fixes**
-- Fixed synchronous-reclaim jank on reopening a previously-squeezed app (release of the `memory.high` throttle was gated behind an unrelated hold-timer, delaying it by several seconds after a genuine reopen).
-- Fixed a stale futility-timer bug in ZRAM pressure-kill campaign tracking that could produce a false "not worth trying" verdict right when real pressure returned after a calm gap.
-- Fixed a PID-reuse gap in cgroup path caching (a live PID number is never reused, so comparing process start-time now reliably catches it).
-- Fixed a false "unexplained death" log line for a real but transient Zygote process-naming artifact.
-- General code-quality pass: atomic file writes for on-disk state (crash/kill mid-write no longer risks corrupting the score file), bounded string copies throughout, one uninitialized-memory fix, zero remaining leaks/dead code confirmed via repeated audit.
-
-**Known open items**
-- `avail_pct`-tiered VM tuning magnitudes are speculative — not yet A/B tested on-device.
-- kswapd unpin/repin has no dwell gate yet — can flap rapidly right at the pressure boundary.
-- A handful of low-priority classification/noise-filtering items in the unattributed-death detector remain open; see `docs/ARCHITECTURE.md` for current status.
+A lot of changes 😏
+Details in `docs/ARCHITECTURE.md`.
 
 ## v1.25
 - **Screen-off detection fix**: `is_screen_off()` now matches both `Asleep` and `Dozing` states — this was blocking idle-tier processing, ZRAM compaction during idle, and fast maintenance→idle transitions
