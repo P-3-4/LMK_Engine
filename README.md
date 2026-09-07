@@ -36,6 +36,7 @@ lmk_engine --start          start the daemon
 lmk_engine --stop           stop the daemon
 lmk_engine --status         show memory/ZRAM/swap/pin status
 lmk_engine --log            tail the live log
+lmk_engine --explain <pkg>  see what the daemon knows about one app
 ```
 
 ## License
