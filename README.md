@@ -42,3 +42,9 @@ lmk_engine --explain <pkg>  see what the daemon knows about one app
 ## License
 
 MIT — see `LICENSE`.
+
+## Disclaimer 
+
+Tbh though if your phone is shit, this Daemon will struggle to keep apps open, for reducing the struggles or smth you can either increase the zram percentage and build using GitHub actions, or add a swap file using the terminal commands `lmk_engine --swap <amount of swap needed in megabytes>`
+e.g `lmk_engine --swap 1024`
+*commands must be run with root*
