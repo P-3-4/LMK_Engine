@@ -1,7 +1,7 @@
 id=lmk_engine
 name=LMK Engine Rebased
-version=1.25
-versionCode=125
+version=1.26
+versionCode=126
 author=P34
 description=A module to boost smoothness on low ram devices
 minMagisk=20400

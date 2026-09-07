@@ -1,7 +1,7 @@
 #!/system/bin/sh
 # ============================================================
 #  LMK Engine — Magisk Module Installer  (customize.sh)
-#  Author : P34   |   Version : 1.25
+#  Author : P34   |   Version : 1.26
 # ============================================================
 
 SKIPUNZIP=1   # We handle extraction ourselves
@@ -9,7 +9,7 @@ SKIPUNZIP=1   # We handle extraction ourselves
 # ── Banner ──────────────────────────────────────────────────
 ui_print ""
 ui_print "╔══════════════════════════════════════╗"
-ui_print "║          LMK Engine 1.25 by P34            ║"
+ui_print "║          LMK Engine 1.26 by P34            ║"
 ui_print "║     A module to boost smoothness           ║"
 ui_print "║          on low ram devices                ║"
 ui_print "╚══════════════════════════════════════╝"
