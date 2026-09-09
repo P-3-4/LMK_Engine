@@ -32,11 +32,12 @@ Flash a release zip from [Releases](../../releases), or zip the `module/` folder
 It works automatically after flashing the module, but you can run this in the terminal for diagnostics:
 
 ```
-lmk_engine --start          start the daemon
-lmk_engine --stop           stop the daemon
-lmk_engine --status         show memory/ZRAM/swap/pin status
-lmk_engine --log            tail the live log
-lmk_engine --explain <pkg>  see what the daemon knows about one app
+lmk_engine --start              start the daemon
+lmk_engine --stop               stop the daemon
+lmk_engine --status             show memory/ZRAM/swap/pin status
+lmk_engine --log                tail the live log
+lmk_engine --swap <size in mb>  add swap
+lmk_engine --explain <pkg>      see what the daemon knows about one app
 ```
 
 ## License
